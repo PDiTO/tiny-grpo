@@ -1,0 +1,71 @@
+[project]
+name = "tiny-grpo"
+version = "0.1.0"
+description = "GRPO from scratch in PyTorch: RL with verifiable rewards on a small open LLM."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Paul Davis" }]
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.9",
+    "numpy>=1.26",
+    "torch>=2.5",
+    "transformers>=4.51",
+]
+keywords = ["grpo", "reinforcement-learning", "rlvr", "llm", "lora", "pytorch"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.scripts]
+tiny-grpo = "tiny_grpo.cli:main"
+
+[dependency-groups]
+dev = ["mypy>=1.15", "pytest>=8.3", "ruff>=0.11"]
+
+[build-system]
+requires = ["uv_build>=0.8.13,<0.10"]
+build-backend = "uv_build"
+
+# CPU-only PyTorch on Linux (CI). macOS wheels on PyPI already ship MPS support
+# and no CUDA, so they come from PyPI as normal.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C4", "N", "PT", "RUF"]
+# `import torch.nn.functional as F` is the universal convention.
+ignore = ["N812"]
+
+[tool.mypy]
+files = ["src", "tests"]
+strict = true
+python_version = "3.12"
+# torch and transformers leave some public functions (Tensor.backward,
+# nn.Module.eval, model constructors) unannotated; calling them is fine.
+untyped_calls_exclude = ["torch", "transformers"]
+
+[[tool.mypy.overrides]]
+# transformers ships partial type information; treat it as untyped.
+module = ["transformers", "transformers.*", "matplotlib", "matplotlib.*"]
+ignore_missing_imports = true
+follow_untyped_imports = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.uv]
+# Keep dependency resolution within the original development period.
+exclude-newer = "2026-04-06T00:00:00Z"

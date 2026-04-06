@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Training artifacts (metrics and plots worth keeping get copied to results/)
+runs/
+checkpoints/
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# Hugging Face cache, if pointed inside the repo
+.cache/
+hf_cache/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
