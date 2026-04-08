@@ -136,6 +136,36 @@ def countdown_is_correct(expr: str, numbers: list[int], target: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Lenient grading, for diagnostics only.
+#
+# The reward is strict about format, which makes it hard to tell "learned the
+# format" apart from "got better at the task". These graders ignore the format
+# and just look for the answer, so eval can report both. They never feed into
+# the reward.
+# ---------------------------------------------------------------------------
+
+_ANSWER_BLOCK = re.compile(r"<answer>(.*?)</answer>", re.DOTALL)
+_ANY_INTEGER = re.compile(r"-?\d{1,3}(?:,\d{3})+(?!\d)|-?\d+")
+
+
+def lenient_integer(text: str) -> int | None:
+    """The last ``<answer>`` block's integer if there is one, otherwise the last
+    integer anywhere in the text."""
+    blocks = _ANSWER_BLOCK.findall(text)
+    if blocks:
+        return parse_integer(blocks[-1])
+    found = _ANY_INTEGER.findall(text)
+    return int(found[-1].replace(",", "")) if found else None
+
+
+def lenient_countdown(text: str, numbers: list[int], target: int) -> bool:
+    """Correct if the last ``<answer>`` block holds a valid solution, whatever
+    else is in the text."""
+    blocks = _ANSWER_BLOCK.findall(text)
+    return bool(blocks) and countdown_is_correct(blocks[-1], numbers, target)
+
+
+# ---------------------------------------------------------------------------
 # Task rewards.
 # ---------------------------------------------------------------------------
 

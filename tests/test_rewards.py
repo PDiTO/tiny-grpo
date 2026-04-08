@@ -8,6 +8,8 @@ from tiny_grpo.rewards import (
     countdown_is_correct,
     countdown_reward,
     evaluate_countdown_expression,
+    lenient_countdown,
+    lenient_integer,
     parse_completion,
     parse_integer,
 )
@@ -217,3 +219,32 @@ def test_countdown_reward() -> None:
     assert r.reward == pytest.approx(1.1)
     r = countdown_reward("(9 + 4) * 2", nums, target)
     assert (r.reward, r.format_ok, r.correct) == (0.0, False, False)
+
+
+# ---------------------------------------------------------------------------
+# Lenient graders (diagnostics only)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        ("The answer is 968.", 968),
+        ("361 + 607 = 968, so the final answer is 968", 968),
+        ("7219 - 196 = 6923\n\\boxed{6923}", 6923),
+        ("955 - 8090 = -7135", -7135),
+        ("That gives 1,234,567 in total", 1234567),
+        ("<think>maybe 5</think><answer>7</answer> or 9", 7),  # answer block wins
+        ("<answer>1</answer><answer>2</answer>", 2),  # last block
+        ("<answer>seven</answer> 7", None),  # block present but unparseable
+        ("no digits here", None),
+    ],
+)
+def test_lenient_integer(text: str, value: int | None) -> None:
+    assert lenient_integer(text) == value
+
+
+def test_lenient_countdown() -> None:
+    assert lenient_countdown("blah <answer>(9 + 4) * 2</answer> blah", [4, 9, 2], 26)
+    assert not lenient_countdown("(9 + 4) * 2", [4, 9, 2], 26)
+    assert not lenient_countdown("<answer>9 * 4 - 2</answer>", [4, 9, 2], 26)
