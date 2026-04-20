@@ -7,7 +7,7 @@ import pytest
 from tiny_grpo.cli import build_parser
 from tiny_grpo.config import load_config
 from tiny_grpo.plot import ema, plot_metrics
-from tiny_grpo.train import cosine_schedule
+from tiny_grpo.train import JsonlLogger, cosine_schedule, get_rng_state, set_rng_state
 
 CONFIGS = sorted((Path(__file__).parent.parent / "configs").glob("*.toml"))
 
@@ -35,6 +35,12 @@ def test_invalid_values_are_rejected(tmp_path: Path) -> None:
         load_config(bad)
     bad.write_text("[rollout]\ngroup_size = 1\n")
     with pytest.raises(ValueError, match="group_size"):
+        load_config(bad)
+    bad.write_text("[rollout]\ntop_p = 0.9\n")
+    with pytest.raises(ValueError, match="top_p"):
+        load_config(bad)
+    bad.write_text("[train]\neval_every = 0\n")
+    with pytest.raises(ValueError, match="eval_every"):
         load_config(bad)
 
 
@@ -75,3 +81,33 @@ def test_cli_parses_subcommands() -> None:
     assert (args.adapters, args.max_new_tokens) == ("a.pt", None)
     args = parser.parse_args(["plot", "--metrics", "m.jsonl"])
     assert args.out == "results/curves.png"
+
+
+def test_jsonl_logger_fresh_run_truncates(tmp_path: Path) -> None:
+    path = tmp_path / "metrics.jsonl"
+    path.write_text('{"step": 1}\n{"step": 2}\n')
+    log = JsonlLogger(path)
+    log.log({"step": 1, "x": 1.0})
+    assert [json.loads(line) for line in path.read_text().splitlines()] == [{"step": 1, "x": 1.0}]
+
+
+def test_jsonl_logger_resume_drops_steps_after_checkpoint(tmp_path: Path) -> None:
+    path = tmp_path / "metrics.jsonl"
+    path.write_text("".join(json.dumps({"step": s}) + "\n" for s in (0, 1, 2, 3, 4)))
+    log = JsonlLogger(path, keep_through_step=2)
+    log.log({"step": 3})
+    assert [json.loads(line)["step"] for line in path.read_text().splitlines()] == [0, 1, 2, 3]
+
+
+def test_rng_state_round_trip() -> None:
+    import random
+
+    import torch
+
+    device = torch.device("cpu")
+    state = get_rng_state(device)
+    first = (random.random(), torch.rand(3))
+    set_rng_state(state, device)
+    second = (random.random(), torch.rand(3))
+    assert first[0] == second[0]
+    assert torch.equal(first[1], second[1])

@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import shutil
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -45,9 +46,23 @@ from tiny_grpo.update import Rollouts, UpdateStats, optimisation_step, score_rol
 
 
 class JsonlLogger:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, keep_through_step: int | None = None) -> None:
+        """Append-only JSONL log.
+
+        A fresh run (``keep_through_step=None``) starts the file empty. A resumed
+        run keeps only records up to the checkpointed step, so steps that ran
+        after the last checkpoint are not logged twice.
+        """
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
+        kept: list[str] = []
+        if keep_through_step is not None and path.exists():
+            kept = [
+                line
+                for line in path.read_text().splitlines()
+                if line.strip() and json.loads(line)["step"] <= keep_through_step
+            ]
+        path.write_text("".join(line + "\n" for line in kept))
 
     def log(self, record: dict[str, Any]) -> None:
         with self.path.open("a") as f:
@@ -66,6 +81,29 @@ def seed_everything(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+
+def get_rng_state(device: torch.device) -> dict[str, Any]:
+    state: dict[str, Any] = {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch": torch.get_rng_state(),
+    }
+    if device.type == "mps":
+        state["mps"] = torch.mps.get_rng_state()
+    elif device.type == "cuda":
+        state["cuda"] = torch.cuda.get_rng_state(device)
+    return state
+
+
+def set_rng_state(state: dict[str, Any], device: torch.device) -> None:
+    random.setstate(state["python"])
+    np.random.set_state(state["numpy"])
+    torch.set_rng_state(state["torch"])
+    if "mps" in state and device.type == "mps":
+        torch.mps.set_rng_state(state["mps"])
+    elif "cuda" in state and device.type == "cuda":
+        torch.cuda.set_rng_state(state["cuda"], device)
 
 
 def _empty_cache(device: torch.device) -> None:
@@ -141,8 +179,6 @@ def train(cfg: Config, resume: bool = False) -> None:
     out_dir = Path(cfg.train.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "config.json").write_text(json.dumps(cfg.to_dict(), indent=2))
-    metrics = JsonlLogger(out_dir / "metrics.jsonl")
-    samples_log = JsonlLogger(out_dir / "samples.jsonl")
 
     device = pick_device(cfg.model.device)
     model, tokenizer = load_policy(
@@ -179,17 +215,23 @@ def train(cfg: Config, resume: bool = False) -> None:
     stream = train_stream(task, cfg.task.train_seed)
 
     start_step = 0
-    state_path = out_dir / "checkpoints" / "last" / "state.pt"
-    if resume and state_path.exists():
-        state = torch.load(state_path, map_location="cpu", weights_only=False)
-        load_adapters(model, state_path.parent / "adapters.pt")
+    ckpt_dir = out_dir / "checkpoints" / "last"
+    if resume:
+        if not (ckpt_dir / "state.pt").exists():
+            raise FileNotFoundError(f"--resume given but no checkpoint in {ckpt_dir}")
+        state = torch.load(ckpt_dir / "state.pt", map_location="cpu", weights_only=False)
+        load_adapters(model, ckpt_dir / "adapters.pt")
         optimizer.load_state_dict(state["optimizer"])
         scheduler.load_state_dict(state["scheduler"])
+        set_rng_state(state["rng"], device)
         start_step = int(state["step"])
         # Fast-forward the problem stream so we don't retrain on the same prompts.
         for _ in range(start_step * cfg.rollout.prompts_per_step):
             next(stream)
         print(f"resumed from step {start_step}", flush=True)
+    keep = start_step if resume else None
+    metrics = JsonlLogger(out_dir / "metrics.jsonl", keep_through_step=keep)
+    samples_log = JsonlLogger(out_dir / "samples.jsonl", keep_through_step=keep)
 
     def run_eval(step: int) -> None:
         t0 = time.time()
@@ -231,11 +273,12 @@ def train(cfg: Config, resume: bool = False) -> None:
         # step, so with a single update per batch we can skip this pass.
         if o.epochs_per_batch * o.minibatches_per_epoch > 1:
             rollouts.old_logprobs = score_rollouts(model, rollouts, mbs, temp)
-        if loss_cfg.kl_coef != 0.0:
+        if loss_cfg.kl_coef != 0.0 or cfg.loss.track_kl:
             rollouts.ref_logprobs = score_rollouts(model, rollouts, mbs, temp, reference=True)
         t_score = time.time() - t0
 
         t0 = time.time()
+        lr_used = scheduler.get_last_lr()[0]  # LR of this step's first update
         model.train()
         updates: list[UpdateStats] = []
         for _ in range(o.epochs_per_batch):
@@ -270,14 +313,14 @@ def train(cfg: Config, resume: bool = False) -> None:
             },
             "train/kl_first": updates[0].kl,
             "train/clip_frac_last": updates[-1].clip_frac,
-            "lr": scheduler.get_last_lr()[0],
+            "lr": lr_used,
             "time/rollout": t_rollout,
             "time/score": t_score,
             "time/update": t_update,
             "time/step": time.time() - t_step,
         }
         metrics.log(record)
-        for i in range(min(cfg.train.log_samples, len(texts))):
+        for i in range(min(cfg.train.log_samples, len(problems))):
             # One sample from each of the first few groups.
             j = i * cfg.rollout.group_size
             samples_log.log(
@@ -299,13 +342,19 @@ def train(cfg: Config, resume: bool = False) -> None:
         if (step + 1) % cfg.train.eval_every == 0 or step + 1 == cfg.train.steps:
             run_eval(step + 1)
         if (step + 1) % cfg.train.save_every == 0 or step + 1 == cfg.train.steps:
-            ckpt = out_dir / "checkpoints" / "last"
-            save_adapters(model, ckpt / "adapters.pt")
+            # Write to a temporary directory and swap it in, so a crash while
+            # saving never leaves adapters and optimiser state out of step.
+            tmp = ckpt_dir.with_name("last.tmp")
+            shutil.rmtree(tmp, ignore_errors=True)
+            save_adapters(model, tmp / "adapters.pt")
             torch.save(
                 {
                     "step": step + 1,
                     "optimizer": optimizer.state_dict(),
                     "scheduler": scheduler.state_dict(),
+                    "rng": get_rng_state(device),
                 },
-                ckpt / "state.pt",
+                tmp / "state.pt",
             )
+            shutil.rmtree(ckpt_dir, ignore_errors=True)
+            tmp.rename(ckpt_dir)

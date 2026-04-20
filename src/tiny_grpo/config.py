@@ -17,7 +17,7 @@ from tiny_grpo.grpo import LossAggregation
 @dataclass
 class ModelConfig:
     name: str = "Qwen/Qwen2.5-0.5B-Instruct"
-    dtype: Literal["float32", "bfloat16", "float16"] = "bfloat16"
+    dtype: Literal["float32", "bfloat16", "float16"] = "float32"
     device: str = "auto"  # "auto" picks mps, then cuda, then cpu
     # Recompute each decoder layer's activations in the backward pass instead of
     # storing them. Roughly halves update memory for about a third more compute.
@@ -67,6 +67,9 @@ class LossSection:
     kl_coef: float = 0.04
     aggregation: LossAggregation = "token"
     scale_advantages: bool = True  # False gives the Dr. GRPO advantage
+    # Score the reference policy even when kl_coef == 0, so the KL to the base
+    # model is still logged. Costs one extra forward pass per step.
+    track_kl: bool = True
 
 
 @dataclass
@@ -113,6 +116,27 @@ class Config:
             raise ValueError(f"unknown loss.aggregation {self.loss.aggregation!r}")
         if not 0.0 <= self.loss.clip_low < 1.0 or self.loss.clip_high < 0.0:
             raise ValueError("clip range must satisfy 0 <= clip_low < 1 and clip_high >= 0")
+        # The loss scores tokens under the full (temperature-scaled) distribution.
+        # Nucleus sampling would draw from a truncated one, and the importance
+        # ratio would be wrong for every token.
+        if r.top_p != 1.0:
+            raise ValueError("rollout.top_p must be 1.0; the loss does not model truncation")
+        if r.temperature <= 0.0:
+            raise ValueError("rollout.temperature must be positive")
+        positive = {
+            "rollout.prompts_per_step": r.prompts_per_step,
+            "rollout.max_new_tokens": r.max_new_tokens,
+            "rollout.generation_batch_size": r.generation_batch_size,
+            "optim.epochs_per_batch": o.epochs_per_batch,
+            "optim.minibatches_per_epoch": o.minibatches_per_epoch,
+            "optim.micro_batch_size": o.micro_batch_size,
+            "train.steps": self.train.steps,
+            "train.eval_every": self.train.eval_every,
+            "train.save_every": self.train.save_every,
+        }
+        for name, value in positive.items():
+            if value < 1:
+                raise ValueError(f"{name} must be at least 1")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
