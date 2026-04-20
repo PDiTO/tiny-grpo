@@ -2,6 +2,7 @@
 
 from typing import Any
 
+import pytest
 import torch
 from torch import nn
 
@@ -123,8 +124,8 @@ def test_chunked_projection_matches_unchunked_values_and_grads(tiny_model: nn.Mo
 
 
 def test_prompt_and_padding_tokens_do_not_affect_masked_loss(tiny_model: nn.Module) -> None:
-    """Changing a padding token, or the token after EOS, leaves every masked
-    log-prob unchanged, and gradients only flow from completion tokens."""
+    """Changing a prompt padding token, or a token after EOS, leaves every
+    log-prob inside the completion mask unchanged."""
     prompt_ids, prompt_mask = _left_pad([[5, 9], [7, 8, 20, 21]])
     completion_ids = torch.tensor([[4, EOS, PAD, PAD], [10, 11, 12, EOS]])
     mask = completion_mask(completion_ids, [EOS])
@@ -152,29 +153,26 @@ def test_left_padding_matches_unpadded(tiny_model: nn.Module) -> None:
     torch.testing.assert_close(alone, padded, atol=1e-5, rtol=1e-4)
 
 
-def test_logprobs_match_generate_scores(tiny_model: nn.Module) -> None:
-    """The log-probs we train on are the log-probs the sampler actually used."""
+@pytest.mark.parametrize("temperature", [1.0, 0.7])
+def test_logprobs_match_generate_scores(tiny_model: nn.Module, temperature: float) -> None:
+    """The log-probs we train on are the log-probs the sampler actually used,
+    including the temperature scaling."""
     prompt_ids, prompt_mask = _left_pad([[5, 9, 12], [7, 8, 20, 21, 22]])
+    cfg = sampling_config(SamplingParams(6, temperature=temperature), PAD, [EOS])
+    cfg.update(return_dict_in_generate=True, output_scores=True)
     torch.manual_seed(0)
     out = tiny_model.generate(  # type: ignore[operator]
-        input_ids=prompt_ids,
-        attention_mask=prompt_mask,
-        do_sample=True,
-        max_new_tokens=6,
-        top_k=0,
-        top_p=1.0,
-        temperature=1.0,
-        pad_token_id=PAD,
-        eos_token_id=EOS,
-        return_dict_in_generate=True,
-        output_logits=True,
+        input_ids=prompt_ids, attention_mask=prompt_mask, generation_config=cfg
     )
     completion_ids = out.sequences[:, prompt_ids.shape[1] :]
     mask = completion_mask(completion_ids, [EOS])
-    sampler = torch.stack(out.logits, dim=1).log_softmax(-1)
+    # scores are the processed logits the sampler drew from (here: logits / T).
+    sampler = torch.stack(out.scores, dim=1).log_softmax(-1)
     sampler = sampler.gather(-1, completion_ids.unsqueeze(-1)).squeeze(-1)
     with torch.no_grad():
-        ours = sequence_logprobs(tiny_model, prompt_ids, prompt_mask, completion_ids, mask)
+        ours = sequence_logprobs(
+            tiny_model, prompt_ids, prompt_mask, completion_ids, mask, temperature
+        )
     torch.testing.assert_close(ours * mask, sampler * mask, atol=1e-5, rtol=1e-4)
 
 
@@ -196,7 +194,8 @@ def test_generate_pads_after_eos(tiny_model: nn.Module) -> None:
     assert (ids[mask == 0] == PAD).all()
 
 
-def test_sampler_ignores_shipped_generation_defaults() -> None:
+@pytest.mark.parametrize("greedy", [False, True])
+def test_sampler_ignores_shipped_generation_defaults(greedy: bool) -> None:
     """The checkpoint's own generation config must not reshape the sampling
     distribution. Mimic Qwen's shipped defaults and check that the scores the
     sampler actually drew from are the raw logits (no temperature, top-k,
@@ -204,7 +203,7 @@ def test_sampler_ignores_shipped_generation_defaults() -> None:
     model: Any = build_tiny_model(vocab=200)
     model.generation_config.update(temperature=0.7, top_p=0.8, top_k=20, repetition_penalty=1.1)
     prompt_ids, prompt_mask = _left_pad([[5, 9, 12, 5, 9], [7, 8, 20]])
-    cfg = sampling_config(SamplingParams(max_new_tokens=6), PAD, [EOS])
+    cfg = sampling_config(SamplingParams(max_new_tokens=6, greedy=greedy), PAD, [EOS])
     cfg.update(return_dict_in_generate=True, output_scores=True, output_logits=True)
     out = model.generate(input_ids=prompt_ids, attention_mask=prompt_mask, generation_config=cfg)
     scores, logits = torch.stack(out.scores), torch.stack(out.logits)

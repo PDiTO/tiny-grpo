@@ -68,10 +68,11 @@ def gather_logprobs(logits: Tensor, tokens: Tensor, temperature: float = 1.0) ->
     the full ``(B, T, V)`` log-softmax is never materialised. With a 150k token
     vocabulary that is the difference between fitting in memory or not.
     """
+    logits = logits.float()
     if temperature != 1.0:
         logits = logits / temperature
     picked = logits.gather(-1, tokens.unsqueeze(-1)).squeeze(-1)
-    return picked.float() - torch.logsumexp(logits.float(), dim=-1)
+    return picked - torch.logsumexp(logits, dim=-1)
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +208,15 @@ def grpo_loss(
     then reduced with :func:`aggregate`. ``ref_logprobs`` may be ``None`` when
     ``kl_coef == 0``, which skips the reference forward pass entirely.
     """
+    # Padding positions carry junk log-probs that can differ wildly between the
+    # scoring passes. They are masked out of the loss, but exp() of a junk
+    # difference could still overflow to inf, and inf * 0 is NaN. Make the
+    # ratio exactly 1 and the KL exactly 0 there instead.
+    keep = mask.bool()
+    old_logprobs = torch.where(keep, old_logprobs, logprobs.detach())
+    if ref_logprobs is not None:
+        ref_logprobs = torch.where(keep, ref_logprobs, logprobs.detach())
+
     surrogate, was_clipped = clipped_surrogate(
         logprobs, old_logprobs, advantages, cfg.clip_low, cfg.clip_high
     )

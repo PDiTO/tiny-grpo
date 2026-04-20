@@ -125,7 +125,10 @@ def position_ids_from_mask(attention_mask: Tensor) -> Tensor:
 
 
 def _chunk_logprobs(hidden: Tensor, weight: Tensor, tokens: Tensor, temperature: float) -> Tensor:
-    return gather_logprobs(F.linear(hidden, weight), tokens, temperature)
+    # Always project in fp32. bf16 logits of size ~25 are only resolved to
+    # ~0.1, which is enough noise to show up in the importance ratio. For an
+    # fp32 model .float() is a no-op.
+    return gather_logprobs(F.linear(hidden.float(), weight.float()), tokens, temperature)
 
 
 def sequence_logprobs(

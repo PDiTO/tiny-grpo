@@ -335,3 +335,26 @@ def test_grpo_loss_requires_ref_for_kl() -> None:
     logp = torch.zeros(2, 3)
     with pytest.raises(ValueError, match="ref_logprobs"):
         grpo_loss(logp, logp, None, torch.zeros(2), MASK, LossConfig(kl_coef=0.1))
+
+
+def test_grpo_loss_ignores_junk_under_the_mask() -> None:
+    """Log-probs at padding positions can be anything, including values whose
+    difference would overflow exp(). The loss and stats must not notice."""
+    torch.manual_seed(0)
+    logp = torch.randn(2, 3) * 0.1 - 1.0
+    old = logp + 0.05
+    ref = logp - 0.05
+    adv = torch.tensor([1.0, -1.0])
+    cfg = LossConfig(kl_coef=0.1)
+    clean = grpo_loss(logp, old, ref, adv, MASK, cfg)
+    junk_old, junk_ref = old.clone(), ref.clone()
+    junk_old[0, 1:] = -1000.0  # exp(logp - old) would be inf
+    junk_ref[0, 1:] = 1000.0
+    dirty = grpo_loss(logp, junk_old, junk_ref, adv, MASK, cfg)
+    for a, b in [
+        (clean.loss, dirty.loss),
+        (clean.kl, dirty.kl),
+        (clean.ratio_mean, dirty.ratio_mean),
+    ]:
+        assert torch.isfinite(b)
+        torch.testing.assert_close(a, b)
