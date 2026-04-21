@@ -55,7 +55,9 @@ def evaluate(
     samples: list[dict[str, Any]] = []
     for start in range(0, len(problems), batch_size):
         chunk = problems[start : start + batch_size]
-        prompt_ids, prompt_mask = encode_prompts(tokenizer, [p.question for p in chunk], device)
+        prompt_ids, prompt_mask = encode_prompts(
+            tokenizer, [p.question for p in chunk], device, task.answer_example
+        )
         completion_ids, mask = generate(
             model, prompt_ids, prompt_mask, params, tokenizer.pad_token_id, eos_ids
         )

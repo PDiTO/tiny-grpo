@@ -86,12 +86,12 @@ def eos_token_ids(model: nn.Module, tokenizer: Any) -> list[int]:
 
 
 def encode_prompts(
-    tokenizer: Any, questions: Sequence[str], device: torch.device
+    tokenizer: Any, questions: Sequence[str], device: torch.device, answer_example: str = "42"
 ) -> tuple[Tensor, Tensor]:
     """Chat-format and left-pad a batch of questions."""
     texts = [
         tokenizer.apply_chat_template(
-            chat_messages(q),
+            chat_messages(q, answer_example),
             tokenize=False,
             add_generation_prompt=True,
         )

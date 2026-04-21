@@ -48,6 +48,8 @@ class TaskConfig:
     train_seed: int = 0
     eval_seed: int = 1
     eval_size: int = 200
+    # Task-specific settings, e.g. num_numbers = [3, 3] for Countdown.
+    options: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

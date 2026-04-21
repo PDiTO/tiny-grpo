@@ -4,7 +4,7 @@ from itertools import islice
 
 import pytest
 
-from tiny_grpo.rewards import countdown_is_correct
+from tiny_grpo.rewards import countdown_is_correct, evaluate_countdown_expression, parse_integer
 from tiny_grpo.tasks import (
     ArithmeticTask,
     CountdownTask,
@@ -100,6 +100,19 @@ def test_eval_set_is_disjoint_from_training_prefix(name: str) -> None:
 def test_make_task_unknown() -> None:
     with pytest.raises(ValueError, match="unknown task"):
         make_task("chess")
+    with pytest.raises(ValueError, match="unknown option"):
+        make_task("countdown", options={"board_size": 8})
+
+
+def test_make_task_options() -> None:
+    task = make_task("countdown", options={"num_numbers": [3, 3]})
+    assert isinstance(task, CountdownTask)
+    assert task.num_numbers == (3, 3)
+    rng = random.Random(0)
+    for _ in range(50):
+        numbers = task.sample(rng).meta["numbers"]
+        assert isinstance(numbers, list)
+        assert len(numbers) == 3
 
 
 def test_chat_messages_carry_format_instruction() -> None:
@@ -108,6 +121,16 @@ def test_chat_messages_carry_format_instruction() -> None:
     assert messages[0]["role"] == "user"
     assert "<answer>" in messages[0]["content"]
     assert messages[0]["content"].startswith("What is 1 + 1?")
+    assert "<answer> 42 </answer>" in messages[0]["content"]
+
+
+def test_answer_examples_are_valid_answers_for_their_task() -> None:
+    """The example in the format instruction should itself parse as an answer."""
+    arith = ArithmeticTask()
+    assert parse_integer(arith.answer_example) is not None
+    countdown = CountdownTask()
+    evaluate_countdown_expression(countdown.answer_example)  # raises if invalid
+    assert "(7 - 3) * 5" in chat_messages("q", countdown.answer_example)[0]["content"]
 
 
 def test_lenient_correct_ignores_format() -> None:

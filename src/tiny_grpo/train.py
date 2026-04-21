@@ -125,7 +125,7 @@ def collect_rollouts(
     device = next(model.parameters()).device
     r = cfg.rollout
     questions = [p.question for p in problems for _ in range(r.group_size)]
-    prompt_ids, prompt_mask = encode_prompts(tokenizer, questions, device)
+    prompt_ids, prompt_mask = encode_prompts(tokenizer, questions, device, task.answer_example)
     params = SamplingParams(r.max_new_tokens, r.temperature, r.top_p)
 
     ids_chunks, mask_chunks = [], []
@@ -210,7 +210,7 @@ def train(cfg: Config, resume: bool = False) -> None:
         aggregation=cfg.loss.aggregation,
     )
 
-    task = make_task(cfg.task.name, cfg.task.format_weight)
+    task = make_task(cfg.task.name, cfg.task.format_weight, cfg.task.options)
     eval_problems = eval_set(task, cfg.task.eval_size, cfg.task.eval_seed, cfg.task.train_seed)
     stream = train_stream(task, cfg.task.train_seed)
 

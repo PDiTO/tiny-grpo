@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import random
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from fractions import Fraction
-from typing import Protocol
+from typing import Any, Protocol
 
 from tiny_grpo.rewards import (
     RewardBreakdown,
@@ -22,22 +22,29 @@ from tiny_grpo.rewards import (
     lenient_integer,
 )
 
-FORMAT_INSTRUCTION = (
-    "Think step by step inside <think> </think> tags, then give only the final answer "
-    "inside <answer> </answer> tags, like this: <think> your reasoning </think> "
-    "<answer> 42 </answer>"
-)
+
+def format_instruction(answer_example: str) -> str:
+    return (
+        "Think step by step inside <think> </think> tags, then give only the final answer "
+        "inside <answer> </answer> tags, like this: <think> your reasoning </think> "
+        f"<answer> {answer_example} </answer>"
+    )
 
 
-def chat_messages(question: str) -> list[dict[str, str]]:
+def chat_messages(question: str, answer_example: str = "42") -> list[dict[str, str]]:
     """The chat turns for one problem.
 
     The format instruction goes in the user turn, not a system prompt. On
     Qwen2.5-0.5B-Instruct I measured roughly 12% well-formatted samples with it
     in the user turn and under 2% with it in the system prompt, and GRPO can only
     reinforce a format it occasionally produces.
+
+    ``answer_example`` must look like a real answer for the task. My first
+    Countdown run used "42" here, and the model learned to put the target
+    number in the answer block instead of an expression.
     """
-    return [{"role": "user", "content": f"{question}\n\n{FORMAT_INSTRUCTION}"}]
+    instruction = format_instruction(answer_example)
+    return [{"role": "user", "content": f"{question}\n\n{instruction}"}]
 
 
 @dataclass(frozen=True)
@@ -52,6 +59,7 @@ class Problem:
 
 class Task(Protocol):
     name: str
+    answer_example: str  # shown in the format instruction
 
     def sample(self, rng: random.Random) -> Problem: ...
 
@@ -77,6 +85,7 @@ class ArithmeticTask:
     """
 
     name: str = "arithmetic"
+    answer_example: str = "42"
     format_weight: float = 0.1
     add_digits: tuple[int, int] = (3, 4)
     mul_left_digits: tuple[int, int] = (2, 3)
@@ -125,6 +134,7 @@ class CountdownTask:
     """
 
     name: str = "countdown"
+    answer_example: str = "(7 - 3) * 5"
     format_weight: float = 0.1
     num_numbers: tuple[int, int] = (3, 4)
     number_range: tuple[int, int] = (1, 25)
@@ -161,9 +171,9 @@ class CountdownTask:
             if target is not None:
                 listed = ", ".join(str(n) for n in numbers)
                 question = (
-                    f"Using the numbers [{listed}], create an equation that equals {target}. "
-                    "You can use + - * / and parentheses, and each number at most once. "
-                    "Put only the expression in the answer, for example (1 + 2) * 3."
+                    f"Using the numbers [{listed}], write an arithmetic expression that equals "
+                    f"{target}. You can use + - * / and parentheses, and each number at most "
+                    "once. The answer must be the expression itself, not its result."
                 )
                 key = f"{sorted(numbers)}->{target}"
                 return Problem(
@@ -190,12 +200,21 @@ TASKS: dict[str, type[ArithmeticTask] | type[CountdownTask]] = {
 }
 
 
-def make_task(name: str, format_weight: float = 0.1) -> Task:
+def make_task(name: str, format_weight: float = 0.1, options: dict[str, Any] | None = None) -> Task:
+    """Build a task by name. ``options`` sets task-specific fields, e.g.
+    ``{"num_numbers": [3, 3]}`` for Countdown."""
     try:
         cls = TASKS[name]
     except KeyError:
         raise ValueError(f"unknown task {name!r}; choose from {sorted(TASKS)}") from None
-    return cls(format_weight=format_weight)
+    known = {f.name for f in fields(cls)} - {"name", "answer_example", "format_weight"}
+    options = dict(options or {})
+    unknown = set(options) - known
+    if unknown:
+        raise ValueError(f"unknown option(s) for {name}: {sorted(unknown)}")
+    # TOML has no tuples; the dataclasses use them for (min, max) ranges.
+    kwargs: dict[str, Any] = {k: tuple(v) if isinstance(v, list) else v for k, v in options.items()}
+    return cls(format_weight=format_weight, **kwargs)
 
 
 def train_stream(task: Task, seed: int) -> Iterator[Problem]:

@@ -34,7 +34,7 @@ def _eval(args: argparse.Namespace) -> None:
     )
     if args.adapters is not None:
         load_adapters(model, Path(args.adapters))
-    task = make_task(cfg.task.name, cfg.task.format_weight)
+    task = make_task(cfg.task.name, cfg.task.format_weight, cfg.task.options)
     size = args.size if args.size is not None else cfg.task.eval_size
     problems = eval_set(task, size, cfg.task.eval_seed, cfg.task.train_seed)
     max_new_tokens = args.max_new_tokens or cfg.rollout.max_new_tokens

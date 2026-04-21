@@ -16,6 +16,12 @@ name = "countdown"
 format_weight = 0.1
 eval_size = 200
 
+[task.options]
+# Three numbers per puzzle instead of three or four, to improve the odds of
+# the first few successes. GRPO has nothing to reinforce until something works,
+# and the base model solved none of 128 sampled attempts at either size.
+num_numbers = [3, 3]
+
 [rollout]
 prompts_per_step = 16
 group_size = 8
@@ -39,7 +45,7 @@ micro_batch_size = 8
 max_grad_norm = 1.0
 
 [train]
-steps = 60
+steps = 40
 eval_every = 10
 save_every = 10
 output_dir = "runs/countdown"
