@@ -1,0 +1,68 @@
+device=mps trainable=8,798,208 / 502,830,976 params
+[eval step 0] acc=0.005 reward=0.006 format=0.005 len=206.4
+step    1 reward=0.037 acc=0.023 fmt=0.13 len=126 kl=0.0000 clip=0.000 t=117s
+step    2 reward=0.128 acc=0.109 fmt=0.19 len=104 kl=0.0015 clip=0.003 t=114s
+step    3 reward=0.170 acc=0.133 fmt=0.37 len=74 kl=0.0133 clip=0.006 t=105s
+step    4 reward=0.423 acc=0.352 fmt=0.71 len=49 kl=0.0370 clip=0.003 t=92s
+step    5 reward=0.523 acc=0.438 fmt=0.85 len=38 kl=0.0602 clip=0.011 t=76s
+step    6 reward=0.577 acc=0.484 fmt=0.92 len=33 kl=0.0919 clip=0.003 t=43s
+step    7 reward=0.653 acc=0.555 fmt=0.98 len=33 kl=0.0697 clip=0.001 t=56s
+step    8 reward=0.758 acc=0.664 fmt=0.94 len=33 kl=0.0656 clip=0.000 t=36s
+step    9 reward=0.723 acc=0.625 fmt=0.98 len=33 kl=0.0988 clip=0.001 t=34s
+step   10 reward=0.519 acc=0.422 fmt=0.97 len=32 kl=0.0848 clip=0.001 t=34s
+[eval step 10] acc=0.715 reward=0.815 format=1.000 len=33.4
+step   11 reward=0.723 acc=0.625 fmt=0.98 len=31 kl=0.5157 clip=0.000 t=33s
+step   12 reward=0.889 acc=0.789 fmt=1.00 len=34 kl=0.0640 clip=0.000 t=39s
+step   13 reward=0.771 acc=0.672 fmt=0.99 len=33 kl=0.0599 clip=0.003 t=33s
+step   14 reward=0.741 acc=0.641 fmt=1.00 len=32 kl=0.0600 clip=0.000 t=33s
+step   15 reward=0.802 acc=0.703 fmt=0.99 len=32 kl=0.0708 clip=0.000 t=32s
+step   16 reward=0.795 acc=0.695 fmt=0.99 len=33 kl=0.0999 clip=0.001 t=34s
+step   17 reward=0.567 acc=0.469 fmt=0.98 len=33 kl=0.0780 clip=0.001 t=33s
+step   18 reward=0.787 acc=0.688 fmt=1.00 len=32 kl=0.0479 clip=0.001 t=33s
+step   19 reward=0.723 acc=0.625 fmt=0.98 len=32 kl=0.0695 clip=0.000 t=34s
+step   20 reward=0.809 acc=0.711 fmt=0.98 len=32 kl=0.1614 clip=0.000 t=36s
+[eval step 20] acc=0.775 reward=0.875 format=1.000 len=33.5
+step   21 reward=0.709 acc=0.609 fmt=0.99 len=32 kl=0.0780 clip=0.002 t=35s
+step   22 reward=0.659 acc=0.562 fmt=0.96 len=31 kl=0.0677 clip=0.001 t=33s
+step   23 reward=0.809 acc=0.711 fmt=0.98 len=33 kl=0.1181 clip=0.000 t=35s
+step   24 reward=0.819 acc=0.719 fmt=1.00 len=33 kl=0.0727 clip=0.000 t=35s
+step   25 reward=0.834 acc=0.734 fmt=1.00 len=35 kl=0.0576 clip=0.000 t=41s
+step   26 reward=0.795 acc=0.695 fmt=0.99 len=33 kl=0.0585 clip=0.000 t=40s
+step   27 reward=0.762 acc=0.664 fmt=0.98 len=34 kl=0.0711 clip=0.000 t=39s
+step   28 reward=0.849 acc=0.750 fmt=0.99 len=35 kl=0.0656 clip=0.000 t=52s
+step   29 reward=0.772 acc=0.672 fmt=1.00 len=34 kl=0.0719 clip=0.001 t=40s
+step   30 reward=0.660 acc=0.562 fmt=0.98 len=35 kl=0.1067 clip=0.000 t=53s
+[eval step 30] acc=0.780 reward=0.880 format=1.000 len=33.7
+step   31 reward=0.841 acc=0.742 fmt=0.98 len=34 kl=0.5133 clip=0.000 t=69s
+step   32 reward=0.786 acc=0.688 fmt=0.98 len=37 kl=0.0705 clip=0.001 t=59s
+step   33 reward=0.763 acc=0.664 fmt=0.99 len=36 kl=0.0528 clip=0.000 t=57s
+step   34 reward=0.738 acc=0.641 fmt=0.98 len=35 kl=0.0684 clip=0.000 t=58s
+step   35 reward=0.920 acc=0.820 fmt=0.99 len=35 kl=0.1113 clip=0.000 t=53s
+step   36 reward=0.660 acc=0.562 fmt=0.98 len=36 kl=0.0678 clip=0.000 t=43s
+step   37 reward=0.715 acc=0.617 fmt=0.98 len=34 kl=0.1852 clip=0.000 t=56s
+step   38 reward=0.864 acc=0.766 fmt=0.98 len=33 kl=0.0756 clip=0.000 t=33s
+step   39 reward=0.851 acc=0.758 fmt=0.93 len=34 kl=0.1207 clip=0.000 t=48s
+step   40 reward=0.759 acc=0.664 fmt=0.95 len=38 kl=0.0786 clip=0.000 t=69s
+[eval step 40] acc=0.785 reward=0.885 format=1.000 len=33.5
+step   41 reward=0.681 acc=0.586 fmt=0.95 len=33 kl=0.1323 clip=0.000 t=33s
+step   42 reward=0.658 acc=0.562 fmt=0.95 len=38 kl=0.0987 clip=0.000 t=69s
+step   43 reward=0.902 acc=0.805 fmt=0.97 len=33 kl=0.0769 clip=0.000 t=33s
+step   44 reward=0.527 acc=0.430 fmt=0.98 len=34 kl=0.0775 clip=0.000 t=57s
+step   45 reward=0.643 acc=0.547 fmt=0.96 len=34 kl=0.0951 clip=0.000 t=56s
+step   46 reward=0.878 acc=0.781 fmt=0.97 len=36 kl=0.0911 clip=0.000 t=64s
+step   47 reward=0.698 acc=0.602 fmt=0.97 len=37 kl=0.1049 clip=0.000 t=63s
+step   48 reward=0.595 acc=0.500 fmt=0.95 len=37 kl=0.1013 clip=0.000 t=66s
+step   49 reward=0.880 acc=0.781 fmt=0.99 len=34 kl=0.0794 clip=0.000 t=41s
+step   50 reward=0.745 acc=0.648 fmt=0.97 len=34 kl=0.0878 clip=0.000 t=41s
+[eval step 50] acc=0.800 reward=0.900 format=1.000 len=33.5
+step   51 reward=0.799 acc=0.703 fmt=0.96 len=35 kl=0.0727 clip=0.000 t=37s
+step   52 reward=0.837 acc=0.742 fmt=0.95 len=38 kl=0.1080 clip=0.000 t=65s
+step   53 reward=0.833 acc=0.734 fmt=0.98 len=34 kl=0.0986 clip=0.000 t=34s
+step   54 reward=0.935 acc=0.836 fmt=0.99 len=34 kl=0.0639 clip=0.000 t=32s
+step   55 reward=0.886 acc=0.789 fmt=0.97 len=35 kl=0.1046 clip=0.000 t=35s
+step   56 reward=0.700 acc=0.602 fmt=0.98 len=33 kl=0.0834 clip=0.000 t=33s
+step   57 reward=0.809 acc=0.711 fmt=0.98 len=37 kl=0.0952 clip=0.000 t=64s
+step   58 reward=0.543 acc=0.445 fmt=0.98 len=34 kl=0.1031 clip=0.000 t=50s
+step   59 reward=0.720 acc=0.625 fmt=0.95 len=34 kl=0.1612 clip=0.000 t=42s
+step   60 reward=0.768 acc=0.672 fmt=0.96 len=38 kl=0.0901 clip=0.000 t=56s
+[eval step 60] acc=0.795 reward=0.895 format=1.000 len=33.5

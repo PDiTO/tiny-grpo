@@ -1,0 +1,15 @@
+device=mps trainable=8,798,208 / 502,830,976 params
+[eval step 0] acc=0.000 reward=0.000 format=0.000 len=253.3
+step    1 reward=0.008 acc=0.000 fmt=0.08 len=211 kl=0.0000 clip=0.000 t=130s
+step    2 reward=0.012 acc=0.000 fmt=0.12 len=193 kl=0.0003 clip=0.000 t=116s
+step    3 reward=0.024 acc=0.000 fmt=0.24 len=183 kl=0.0023 clip=0.002 t=111s
+step    4 reward=0.048 acc=0.000 fmt=0.48 len=131 kl=0.0109 clip=0.003 t=110s
+step    5 reward=0.072 acc=0.000 fmt=0.72 len=81 kl=0.0309 clip=0.002 t=98s
+step    6 reward=0.084 acc=0.000 fmt=0.84 len=65 kl=0.0842 clip=0.002 t=92s
+step    7 reward=0.089 acc=0.000 fmt=0.89 len=54 kl=0.0738 clip=0.000 t=87s
+step    8 reward=0.094 acc=0.000 fmt=0.94 len=54 kl=0.0787 clip=0.000 t=85s
+step    9 reward=0.091 acc=0.000 fmt=0.91 len=51 kl=0.0754 clip=0.002 t=85s
+step   10 reward=0.097 acc=0.000 fmt=0.97 len=44 kl=0.0869 clip=0.000 t=78s
+[eval step 10] acc=0.000 reward=0.100 format=1.000 len=35.0
+step   11 reward=0.092 acc=0.000 fmt=0.92 len=51 kl=0.1048 clip=0.000 t=85s
+step   12 reward=0.097 acc=0.000 fmt=0.97 len=45 kl=0.0931 clip=0.000 t=78s

@@ -1,0 +1,65 @@
+{
+  "model": {
+    "name": "Qwen/Qwen2.5-0.5B-Instruct",
+    "dtype": "float32",
+    "device": "auto",
+    "gradient_checkpointing": true
+  },
+  "lora": {
+    "rank": 16,
+    "alpha": 32.0,
+    "targets": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ]
+  },
+  "task": {
+    "name": "countdown",
+    "format_weight": 0.1,
+    "train_seed": 0,
+    "eval_seed": 1,
+    "eval_size": 200
+  },
+  "rollout": {
+    "prompts_per_step": 16,
+    "group_size": 8,
+    "max_new_tokens": 256,
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "generation_batch_size": 128
+  },
+  "loss": {
+    "clip_low": 0.2,
+    "clip_high": 0.2,
+    "kl_coef": 0.04,
+    "aggregation": "token",
+    "scale_advantages": true
+  },
+  "optim": {
+    "lr": 2e-05,
+    "weight_decay": 0.0,
+    "betas": [
+      0.9,
+      0.99
+    ],
+    "warmup_steps": 10,
+    "min_lr_ratio": 0.1,
+    "max_grad_norm": 1.0,
+    "epochs_per_batch": 1,
+    "minibatches_per_epoch": 2,
+    "micro_batch_size": 8
+  },
+  "train": {
+    "steps": 40,
+    "seed": 0,
+    "eval_every": 10,
+    "save_every": 10,
+    "output_dir": "runs/countdown",
+    "log_samples": 4
+  }
+}
