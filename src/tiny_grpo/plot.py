@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -109,6 +110,75 @@ def plot_metrics(metrics_path: str | Path, out_path: str | Path, title: str | No
             ax.spines[side].set_color(GRID)
         if len(handles) > 1:
             ax.legend(handles=handles, frameon=False, fontsize=8, labelcolor=TEXT_MUTED)
+    if title:
+        fig.suptitle(title, color=TEXT, fontsize=13, x=0.01, ha="left")
+    fig.tight_layout()
+    out = Path(out_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=130, facecolor=SURFACE)
+    plt.close(fig)
+    return out
+
+
+# Panels for comparing runs: (title, key, y label, smooth).
+COMPARE_PANELS: list[tuple[str, str, str, bool]] = [
+    ("KL to reference (k3)", "train/kl", "per-token KL", True),
+    ("Train reward", "train/reward", "mean reward", True),
+    ("Held-out accuracy (greedy)", "eval/accuracy", "fraction correct", False),
+]
+RUN_COLORS = [TRAIN, EVAL, EVAL_LENIENT]
+
+
+def plot_comparison(
+    metrics_paths: Sequence[str | Path],
+    labels: Sequence[str],
+    out_path: str | Path,
+    title: str | None = None,
+) -> Path:
+    """Overlay a few key metrics from up to three runs."""
+    if len(metrics_paths) != len(labels):
+        raise ValueError("need one label per metrics file")
+    if not 1 <= len(metrics_paths) <= len(RUN_COLORS):
+        raise ValueError(f"can compare 1 to {len(RUN_COLORS)} runs")
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    runs = [load_metrics(p) for p in metrics_paths]
+    fig, axes = plt.subplots(1, len(COMPARE_PANELS), figsize=(13, 3.8), facecolor=SURFACE)
+    for ax, (name, key, ylabel, smooth) in zip(axes.flat, COMPARE_PANELS, strict=True):
+        ax.set_facecolor(SURFACE)
+        for records, label, color in zip(runs, labels, RUN_COLORS, strict=False):
+            x, y = series(records, key)
+            if not len(x):
+                continue
+            if smooth:
+                ax.plot(x, y, color=color, alpha=0.25, linewidth=1)
+                ax.plot(x, ema(y), color=color, linewidth=2, label=label)
+            else:
+                ax.plot(
+                    x,
+                    y,
+                    color=color,
+                    linewidth=2,
+                    marker="o",
+                    markersize=5,
+                    markeredgecolor=SURFACE,
+                    markeredgewidth=1.5,
+                    label=label,
+                )
+        ax.set_title(name, color=TEXT, fontsize=11, loc="left")
+        ax.set_xlabel("step", color=TEXT_MUTED, fontsize=9)
+        ax.set_ylabel(ylabel, color=TEXT_MUTED, fontsize=9)
+        ax.tick_params(colors=TEXT_MUTED, labelsize=8)
+        ax.grid(True, color=GRID, linewidth=0.8)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+        for side in ("left", "bottom"):
+            ax.spines[side].set_color(GRID)
+        if len(runs) > 1:
+            ax.legend(frameon=False, fontsize=8, labelcolor=TEXT_MUTED)
     if title:
         fig.suptitle(title, color=TEXT, fontsize=13, x=0.01, ha="left")
     fig.tight_layout()

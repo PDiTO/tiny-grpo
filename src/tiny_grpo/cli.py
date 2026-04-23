@@ -1,4 +1,4 @@
-"""``tiny-grpo train | eval | plot``."""
+"""``tiny-grpo train | eval | plot | compare``."""
 
 from __future__ import annotations
 
@@ -57,6 +57,14 @@ def _plot(args: argparse.Namespace) -> None:
     print(f"wrote {out}")
 
 
+def _compare(args: argparse.Namespace) -> None:
+    from tiny_grpo.plot import plot_comparison
+
+    labels = args.labels if args.labels is not None else [str(p) for p in args.metrics]
+    out = plot_comparison(args.metrics, labels, args.out, title=args.title)
+    print(f"wrote {out}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tiny-grpo", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -83,6 +91,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", default="results/curves.png")
     p.add_argument("--title", default=None)
     p.set_defaults(func=_plot)
+
+    p = sub.add_parser("compare", help="overlay KL, reward and eval accuracy from several runs")
+    p.add_argument("--metrics", nargs="+", required=True)
+    p.add_argument("--labels", nargs="+", default=None)
+    p.add_argument("--out", default="results/compare.png")
+    p.add_argument("--title", default=None)
+    p.set_defaults(func=_compare)
     return parser
 
 

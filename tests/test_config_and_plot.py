@@ -6,7 +6,7 @@ import pytest
 
 from tiny_grpo.cli import build_parser
 from tiny_grpo.config import load_config
-from tiny_grpo.plot import ema, plot_metrics
+from tiny_grpo.plot import ema, plot_comparison, plot_metrics
 from tiny_grpo.train import JsonlLogger, cosine_schedule, get_rng_state, set_rng_state
 
 CONFIGS = sorted((Path(__file__).parent.parent / "configs").glob("*.toml"))
@@ -73,6 +73,22 @@ def test_plot_writes_png(tmp_path: Path) -> None:
     assert out.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
 
 
+def test_comparison_plot_writes_png(tmp_path: Path) -> None:
+    paths = []
+    for i in range(2):
+        path = tmp_path / f"run{i}.jsonl"
+        rows = [
+            {"step": s, "train/kl": 0.01 * s * (i + 1), "train/reward": s / 10} for s in range(1, 6)
+        ]
+        rows.append({"step": 5, "eval/accuracy": 0.5 + i / 10})
+        path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+        paths.append(path)
+    out = plot_comparison(paths, ["a", "b"], tmp_path / "cmp.png")
+    assert out.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+    with pytest.raises(ValueError, match="label"):
+        plot_comparison(paths, ["a"], tmp_path / "x.png")
+
+
 def test_cli_parses_subcommands() -> None:
     parser = build_parser()
     args = parser.parse_args(["train", "--config", "configs/arith.toml", "--steps", "3"])
@@ -81,6 +97,8 @@ def test_cli_parses_subcommands() -> None:
     assert (args.adapters, args.max_new_tokens) == ("a.pt", None)
     args = parser.parse_args(["plot", "--metrics", "m.jsonl"])
     assert args.out == "results/curves.png"
+    args = parser.parse_args(["compare", "--metrics", "a.jsonl", "b.jsonl", "--labels", "a", "b"])
+    assert args.metrics == ["a.jsonl", "b.jsonl"]
 
 
 def test_jsonl_logger_fresh_run_truncates(tmp_path: Path) -> None:
