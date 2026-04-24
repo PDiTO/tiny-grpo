@@ -1,4 +1,6 @@
-<!-- logo -->
+<p align="center">
+  <img src="docs/logo.png" alt="tiny-grpo logo" width="220">
+</p>
 
 # tiny-grpo
 
